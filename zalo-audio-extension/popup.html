@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zalo Audio ZIP Exporter</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <div class="brand">
+        <img src="icons/icon-48.png" alt="" width="42" height="42" />
+        <div>
+          <h1>Zalo Audio</h1>
+          <p>Nghe thử, chọn file và tải ZIP</p>
+        </div>
+      </div>
+
+      <div id="status" class="status" data-type="info">
+        Mở cuộc trò chuyện trên chat.zalo.me trước.
+      </div>
+
+      <button id="openPanel" class="primary" type="button">
+        Mở bảng tải audio
+      </button>
+
+      <button id="quickScan" class="secondary" type="button">
+        Quét nhanh tab hiện tại
+      </button>
+
+      <p class="hint">
+        Mở bảng nổi để nghe preview, tick file cần tải và xuất ZIP theo lựa chọn.
+      </p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

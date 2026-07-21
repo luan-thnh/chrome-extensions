@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Zalo Audio ZIP Exporter",
+  "version": "1.1.0",
+  "description": "Quét audio blob trên Zalo Web, nghe thử, chọn từng file và tải xuống dưới dạng ZIP.",
+  "minimum_chrome_version": "102",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://chat.zalo.me/*"
+  ],
+  "action": {
+    "default_title": "Zalo Audio ZIP Exporter",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
