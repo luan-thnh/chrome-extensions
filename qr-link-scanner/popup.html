@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Link Hunter</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div>
+        <h1>QR Link Hunter</h1>
+        <p>Scan QR codes already visible on this page.</p>
+      </div>
+    </header>
+
+    <section class="settings" aria-label="Scanner settings">
+      <label class="setting-row">
+        <span><strong>Auto scan</strong><small>Watch images and page changes</small></span>
+        <input id="autoScan" type="checkbox" />
+      </label>
+      <label class="setting-row">
+        <span><strong>Auto open</strong><small>Open the first detected web link</small></span>
+        <input id="autoOpen" type="checkbox" />
+      </label>
+    </section>
+
+    <div class="status-row">
+      <div>
+        <span class="eyebrow">Current page</span>
+        <strong id="statusText">Checking…</strong>
+      </div>
+      <button id="scanButton" class="scan-button" type="button">Scan now</button>
+    </div>
+
+    <section id="results" class="results" aria-live="polite"></section>
+
+    <footer>
+      <span>Local scan</span>
+      <span>No QR data is uploaded by this extension.</span>
+    </footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
