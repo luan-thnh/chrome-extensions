@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Canvora</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="brand-row">
+      <div class="brand-lockup">
+        <img class="brand-mark" src="icons/logo.svg" alt="" />
+        <div>
+          <div class="brand-name">CANVORA</div>
+          <div class="brand-sub">render → document</div>
+        </div>
+      </div>
+      <button id="scanBtn" class="icon-button" type="button" title="Quét lại trang" aria-label="Quét lại trang">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+      </button>
+    </header>
+
+    <section class="hero-card">
+      <div class="signal-line"><span class="signal-dot"></span><span id="statusLabel">Đang quét trang…</span></div>
+      <div class="metric-row">
+        <div class="metric"><strong id="pageCount">—</strong><span>trang khả dụng</span></div>
+        <div class="metric"><strong id="viewerType">AUTO</strong><span>viewer</span></div>
+      </div>
+      <div id="detectedTags" class="tag-row" aria-live="polite"></div>
+      <p id="scanNote" class="scan-note">Canvora ưu tiên canvas kích thước trang và bỏ qua icon/chart nhỏ.</p>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <span>CAPTURE MODE</span>
+        <span class="section-index">01</span>
+      </div>
+
+      <label class="switch-row">
+        <span><b>Deep Scan</b><small>Quét iframe khác domain khi bạn cấp quyền.</small></span>
+        <input id="deepScan" type="checkbox" />
+        <i aria-hidden="true"></i>
+      </label>
+
+      <label class="switch-row">
+        <span><b>Lazy-page sweep</b><small>Tự cuộn viewer để bắt trang chỉ render khi xuất hiện.</small></span>
+        <input id="autoScroll" type="checkbox" checked />
+        <i aria-hidden="true"></i>
+      </label>
+
+      <label class="switch-row">
+        <span><b>Smart filter</b><small>Lọc canvas nhỏ; nhận PDF.js, React-PDF và viewer tương tự.</small></span>
+        <input id="smartFilter" type="checkbox" checked />
+        <i aria-hidden="true"></i>
+      </label>
+
+      <label class="switch-row">
+        <span><b>Include image/SVG pages</b><small>Thử bắt viewer render trang bằng img hoặc SVG.</small></span>
+        <input id="includeMedia" type="checkbox" checked />
+        <i aria-hidden="true"></i>
+      </label>
+    </section>
+
+    <section class="panel compact-panel">
+      <div class="section-heading">
+        <span>OUTPUT</span>
+        <span class="section-index">02</span>
+      </div>
+
+      <div class="field-grid">
+        <label class="field field-wide">
+          <span>Page range</span>
+          <input id="pageRange" type="text" placeholder="all · 1-5, 8, 10-" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>PDF size</span>
+          <select id="pdfSize">
+            <option value="source">Source ratio</option>
+            <option value="a4">A4 fit</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>PDF quality</span>
+          <select id="pdfQuality">
+            <option value="exact">Exact Canvas · recommended</option>
+            <option value="lossless">Lossless PNG · largest</option>
+            <option value="jpeg">JPEG custom · smaller</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>ZIP images</span>
+          <select id="imageFormat">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="quality-row">
+        <div><span>Custom JPEG quality</span><b id="qualityValue">98%</b></div>
+        <input id="quality" type="range" min="80" max="100" step="1" value="98" />
+      </div>
+
+      <div class="micro-options">
+        <label><input id="trim" type="checkbox" /><span>Trim white edges</span></label>
+        <label><input id="reverse" type="checkbox" /><span>Reverse order</span></label>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="exportPdf" class="primary-action" type="button">
+        <span>EXPORT PDF</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg>
+      </button>
+      <button id="exportZip" class="secondary-action" type="button">Pages ZIP</button>
+      <button id="downloadOriginal" class="secondary-action source-action" type="button" hidden>Original PDF</button>
+    </section>
+
+    <div id="progress" class="progress" hidden>
+      <span class="progress-bar"></span>
+      <span id="progressText">Đang dựng tài liệu…</span>
+    </div>
+
+    <footer>
+      <span>Local-first · no upload</span>
+      <span id="version">v1.1.0</span>
+    </footer>
+  </main>
+
+  <script src="shared/core.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

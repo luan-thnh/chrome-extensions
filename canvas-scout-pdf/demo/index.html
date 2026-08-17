@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Canvora Demo — 32 Canvas Pages</title>
+<style>
+  body{margin:0;background:#ddd;font-family:system-ui}.bar{position:sticky;top:0;z-index:2;background:#111;color:#fff;padding:12px 18px}.bar b{color:#b8ff3d}
+  #pdfframe{width:min(100%,1020px);height:82vh;overflow:auto;background:#f5f5f5;padding:10px;margin:24px auto;box-shadow:0 12px 40px #0002}
+  canvas{display:block;width:min(950px,100%);height:auto;margin:0 auto 10px;background:white;box-shadow:0 2px 6px #0002}
+</style>
+</head>
+<body>
+<div class="bar"><b>CANVORA TEST</b> · #pdfframe · 32 canvas · lazy scroll container</div>
+<div id="pdfframe"></div>
+<script>
+const frame=document.querySelector('#pdfframe');
+for(let p=1;p<=32;p++){
+  const canvas=document.createElement('canvas'); canvas.width=950; canvas.height=734; canvas.dataset.pageNumber=p;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,950,734); ctx.fillStyle='#111'; ctx.font='900 78px system-ui'; ctx.fillText(String(p).padStart(2,'0'),58,105);
+  ctx.font='700 31px system-ui'; ctx.fillText('CANVORA RENDERED PAGE',58,170); ctx.fillStyle='#b8ff3d'; ctx.fillRect(58,210,834,12);
+  ctx.fillStyle='#242620'; ctx.font='20px system-ui';
+  for(let i=0;i<11;i++) ctx.fillText(`Canvas page ${p} · line ${i+1} · generated locally for extension testing.`,58,280+i*34);
+  frame.appendChild(canvas);
+}
+</script>
+</body>
+</html>

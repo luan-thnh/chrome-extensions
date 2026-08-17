@@ -1,0 +1,9 @@
+{
+  "name": "canvora-chrome-extension",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "test": "node tests/core.test.mjs",
+    "check": "node --check popup.js && node --check collector.js && node --check shared/core.js"
+  }
+}
