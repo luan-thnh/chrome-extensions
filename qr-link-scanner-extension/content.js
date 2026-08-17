@@ -4,10 +4,14 @@
   const MAX_PARALLEL_SCANS = 2;
   const SCREENSHOT_DELAY_MS = 1200;
   const RESCAN_DEBOUNCE_MS = 350;
+  const LOCAL_DECODER_MAX_AREA = 2_500_000;
 
   const state = {
     detector: null,
+    localSupported: false,
+    nativeSupported: false,
     supported: false,
+    engine: 'none',
     results: [],
     resultKeys: new Set(),
     scannedSources: new Set(),
@@ -33,27 +37,40 @@
 
     state.supported = await initializeDetector();
     if (!state.supported) {
-      console.warn('[QR Link Hunter] BarcodeDetector is unavailable in this Chrome build.');
+      console.warn('[QR Link Hunter] No QR decoder could be initialized.');
       return;
     }
+
+    console.info(`[QR Link Hunter] QR engine: ${state.engine}`);
 
     if (state.autoScan) startAutomaticScanning();
   }
 
   async function initializeDetector() {
-    if (!('BarcodeDetector' in globalThis)) return false;
+    state.localSupported = typeof globalThis.QRLocalDecoder?.decode === 'function';
 
-    try {
-      if (typeof BarcodeDetector.getSupportedFormats === 'function') {
-        const formats = await BarcodeDetector.getSupportedFormats();
-        if (!formats.includes('qr_code')) return false;
+    if ('BarcodeDetector' in globalThis) {
+      try {
+        let qrSupported = true;
+        if (typeof BarcodeDetector.getSupportedFormats === 'function') {
+          const formats = await BarcodeDetector.getSupportedFormats();
+          qrSupported = formats.includes('qr_code');
+        }
+
+        if (qrSupported) {
+          state.detector = new BarcodeDetector({ formats: ['qr_code'] });
+          state.nativeSupported = true;
+        }
+      } catch (error) {
+        console.warn('[QR Link Hunter] Native BarcodeDetector unavailable; using bundled local decoder.', error);
       }
-      state.detector = new BarcodeDetector({ formats: ['qr_code'] });
-      return true;
-    } catch (error) {
-      console.warn('[QR Link Hunter] Failed to initialize BarcodeDetector:', error);
-      return false;
     }
+
+    if (state.nativeSupported && state.localSupported) state.engine = 'Native + local fallback';
+    else if (state.nativeSupported) state.engine = 'Native BarcodeDetector';
+    else if (state.localSupported) state.engine = 'Bundled local JavaScript';
+
+    return state.nativeSupported || state.localSupported;
   }
 
   function startAutomaticScanning() {
@@ -92,6 +109,9 @@
       sendResponse({
         ok: true,
         supported: state.supported,
+        engine: state.engine,
+        nativeSupported: state.nativeSupported,
+        localSupported: state.localSupported,
         results: state.results,
         scanning: state.activeWorkers > 0 || state.queue.length > 0
       });
@@ -215,17 +235,43 @@
     ];
 
     for (const attempt of attempts) {
+      let canvas;
       try {
-        const canvas = renderWithQuietZone(source, width, height, attempt.scale, attempt.paddingRatio);
-        const barcodes = await state.detector.detect(canvas);
-        const qrCodes = barcodes.filter((item) => !item.format || item.format === 'qr_code');
-
-        if (qrCodes.length) {
-          qrCodes.forEach((item) => registerResult(item.rawValue, sourceLabel));
-          return true;
-        }
+        canvas = renderWithQuietZone(source, width, height, attempt.scale, attempt.paddingRatio);
       } catch (_) {
-        // SecurityError, detached source, unsupported image, etc.
+        continue;
+      }
+
+      // Use the browser-native engine when this Chromium build exposes it.
+      if (state.nativeSupported && state.detector) {
+        try {
+          const barcodes = await state.detector.detect(canvas);
+          const qrCodes = barcodes.filter((item) => !item.format || item.format === 'qr_code');
+
+          if (qrCodes.length) {
+            qrCodes.forEach((item) => registerResult(item.rawValue, sourceLabel));
+            return true;
+          }
+        } catch (_) {
+          // Fall through to the bundled platform-independent decoder.
+        }
+      }
+
+      // Portable fallback: decode pixels locally in JavaScript. It does not depend
+      // on BarcodeDetector, OS codecs, or a remote service.
+      if (state.localSupported && sourceLabel !== 'visible viewport' && canvas.width * canvas.height <= LOCAL_DECODER_MAX_AREA) {
+        try {
+          const context = canvas.getContext('2d', { willReadFrequently: true });
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+          const decoded = globalThis.QRLocalDecoder.decode(pixels, pixels.width, pixels.height);
+
+          if (decoded?.data) {
+            registerResult(decoded.data, sourceLabel);
+            return true;
+          }
+        } catch (_) {
+          // Tainted canvas, detached source, malformed image, etc.
+        }
       }
     }
 

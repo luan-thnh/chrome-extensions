@@ -43,7 +43,10 @@ async function refreshResults() {
     }
 
     const results = Array.isArray(response.results) ? response.results : [];
-    statusText.textContent = results.length ? `${results.length} QR code${results.length === 1 ? '' : 's'} found` : (response.scanning ? 'Scanning…' : 'No QR found yet');
+    const engineLabel = response.engine && response.engine !== 'none' ? ` · ${response.engine}` : '';
+    statusText.textContent = results.length
+      ? `${results.length} QR code${results.length === 1 ? '' : 's'} found${engineLabel}`
+      : (response.scanning ? `Scanning…${engineLabel}` : `No QR found yet${engineLabel}`);
     renderResults(results);
   } catch (_) {
     renderUnavailable('This page cannot be scanned.');
@@ -129,7 +132,7 @@ function createResultCard(result) {
 
 function renderUnsupported() {
   statusText.textContent = 'QR engine unavailable';
-  resultsContainer.innerHTML = '<div class="empty unsupported">This Chrome build does not expose the native BarcodeDetector QR engine. The extension UI is working, but this build needs a bundled QR decoder fallback for full Linux compatibility.</div>';
+  resultsContainer.innerHTML = '<div class="empty unsupported">No QR engine could be initialized. Reload the extension from chrome://extensions. Version 0.2 includes a bundled local JavaScript decoder and should not require native BarcodeDetector support.</div>';
 }
 
 function renderUnavailable(message) {
