@@ -463,6 +463,202 @@
     return result;
   }
 
+  // QR uses Reed-Solomon over GF(256) with primitive polynomial 0x11D.
+  // The first portable decoder version only de-interleaved data bytes, which
+  // meant a slightly imperfect sample could turn a valid URL into characters
+  // such as "`ttps://...". Correcting each RS block before parsing payload bytes
+  // makes the fallback decoder behave much closer to native QR readers.
+  const GF_EXP = new Uint16Array(512);
+  const GF_LOG = new Int16Array(256);
+  (() => {
+    let x = 1;
+    for (let i = 0; i < 255; i += 1) {
+      GF_EXP[i] = x;
+      GF_LOG[x] = i;
+      x <<= 1;
+      if (x & 0x100) x ^= 0x11d;
+    }
+    for (let i = 255; i < GF_EXP.length; i += 1) GF_EXP[i] = GF_EXP[i - 255];
+    GF_LOG[0] = -1;
+  })();
+
+  function gfMultiply(a, b) {
+    if (!a || !b) return 0;
+    return GF_EXP[GF_LOG[a] + GF_LOG[b]];
+  }
+
+  function gfDivide(a, b) {
+    if (!b) throw new Error('GF division by zero.');
+    if (!a) return 0;
+    let exponent = GF_LOG[a] - GF_LOG[b];
+    if (exponent < 0) exponent += 255;
+    return GF_EXP[exponent];
+  }
+
+  function gfPowAlpha(exponent) {
+    let value = exponent % 255;
+    if (value < 0) value += 255;
+    return GF_EXP[value];
+  }
+
+  function evaluatePolynomial(coefficients, x) {
+    // Coefficients are stored from highest degree to constant term.
+    let result = 0;
+    for (const coefficient of coefficients) result = gfMultiply(result, x) ^ coefficient;
+    return result;
+  }
+
+  function computeSyndromes(received, eccLength) {
+    const syndromes = new Uint8Array(eccLength);
+    let hasError = false;
+    for (let i = 0; i < eccLength; i += 1) {
+      const syndrome = evaluatePolynomial(received, gfPowAlpha(i));
+      syndromes[i] = syndrome;
+      if (syndrome !== 0) hasError = true;
+    }
+    return { syndromes, hasError };
+  }
+
+  function findErrorLocator(syndromes, eccLength) {
+    // Berlekamp-Massey on S0..S(n-1). Polynomials here are stored in
+    // ascending order: C[0] + C[1]z + ...
+    const c = new Uint8Array(eccLength + 1);
+    const b = new Uint8Array(eccLength + 1);
+    c[0] = 1;
+    b[0] = 1;
+
+    let locatorDegree = 0;
+    let shift = 1;
+    let previousDiscrepancy = 1;
+
+    for (let n = 0; n < eccLength; n += 1) {
+      let discrepancy = syndromes[n];
+      for (let i = 1; i <= locatorDegree; i += 1) {
+        discrepancy ^= gfMultiply(c[i], syndromes[n - i]);
+      }
+
+      if (discrepancy === 0) {
+        shift += 1;
+        continue;
+      }
+
+      const previousC = c.slice();
+      const scale = gfDivide(discrepancy, previousDiscrepancy);
+      for (let i = 0; i + shift < c.length; i += 1) {
+        if (b[i]) c[i + shift] ^= gfMultiply(scale, b[i]);
+      }
+
+      if (2 * locatorDegree <= n) {
+        locatorDegree = n + 1 - locatorDegree;
+        b.set(previousC);
+        previousDiscrepancy = discrepancy;
+        shift = 1;
+      } else {
+        shift += 1;
+      }
+    }
+
+    if (locatorDegree < 1 || locatorDegree > Math.floor(eccLength / 2)) return null;
+    return { coefficients: c.slice(0, locatorDegree + 1), degree: locatorDegree };
+  }
+
+  function evaluateAscendingPolynomial(coefficients, x) {
+    let result = 0;
+    let power = 1;
+    for (const coefficient of coefficients) {
+      if (coefficient) result ^= gfMultiply(coefficient, power);
+      power = gfMultiply(power, x);
+    }
+    return result;
+  }
+
+  function findErrorPositions(locator, messageLength) {
+    const positions = [];
+    const xValues = [];
+
+    // A symbol at array index i is the coefficient of x^(messageLength-1-i).
+    // Locator roots are alpha^(-degree).
+    for (let degree = 0; degree < messageLength; degree += 1) {
+      const rootCandidate = gfPowAlpha(-degree);
+      if (evaluateAscendingPolynomial(locator.coefficients, rootCandidate) === 0) {
+        positions.push(messageLength - 1 - degree);
+        xValues.push(gfPowAlpha(degree));
+      }
+    }
+
+    if (positions.length !== locator.degree) return null;
+    return { positions, xValues };
+  }
+
+  function solveErrorMagnitudes(syndromes, xValues) {
+    const count = xValues.length;
+    const matrix = Array.from({ length: count }, () => new Uint8Array(count + 1));
+
+    for (let row = 0; row < count; row += 1) {
+      for (let col = 0; col < count; col += 1) {
+        matrix[row][col] = row === 0 ? 1 : gfPowElement(xValues[col], row);
+      }
+      matrix[row][count] = syndromes[row];
+    }
+
+    // Gaussian elimination in GF(256).
+    for (let col = 0; col < count; col += 1) {
+      let pivot = col;
+      while (pivot < count && matrix[pivot][col] === 0) pivot += 1;
+      if (pivot === count) return null;
+
+      if (pivot !== col) {
+        const temp = matrix[col];
+        matrix[col] = matrix[pivot];
+        matrix[pivot] = temp;
+      }
+
+      const pivotValue = matrix[col][col];
+      if (pivotValue !== 1) {
+        const inverse = gfDivide(1, pivotValue);
+        for (let j = col; j <= count; j += 1) matrix[col][j] = gfMultiply(matrix[col][j], inverse);
+      }
+
+      for (let row = 0; row < count; row += 1) {
+        if (row === col) continue;
+        const factor = matrix[row][col];
+        if (!factor) continue;
+        for (let j = col; j <= count; j += 1) matrix[row][j] ^= gfMultiply(factor, matrix[col][j]);
+      }
+    }
+
+    return Uint8Array.from(matrix.map((row) => row[count]));
+  }
+
+  function gfPowElement(value, exponent) {
+    if (exponent === 0) return 1;
+    if (value === 0) return 0;
+    return gfPowAlpha(GF_LOG[value] * exponent);
+  }
+
+  function correctReedSolomonBlock(block, eccLength) {
+    const working = Uint8Array.from(block);
+    const initial = computeSyndromes(working, eccLength);
+    if (!initial.hasError) return working;
+
+    const locator = findErrorLocator(initial.syndromes, eccLength);
+    if (!locator) return null;
+
+    const found = findErrorPositions(locator, working.length);
+    if (!found) return null;
+
+    const magnitudes = solveErrorMagnitudes(initial.syndromes, found.xValues);
+    if (!magnitudes) return null;
+
+    for (let i = 0; i < found.positions.length; i += 1) {
+      const position = found.positions[i];
+      if (position < 0 || position >= working.length) return null;
+      working[position] ^= magnitudes[i];
+    }
+
+    return computeSyndromes(working, eccLength).hasError ? null : working;
+  }
+
   function deinterleaveData(codewords, version, eclTableIndex) {
     const eccLen = ECC_CODEWORDS_PER_BLOCK[eclTableIndex]?.[version];
     const numBlocks = NUM_ERROR_CORRECTION_BLOCKS[eclTableIndex]?.[version];
@@ -475,32 +671,45 @@
     const shortBlockLen = Math.floor(rawCodewords / numBlocks);
     const numShortBlocks = numBlocks - (rawCodewords % numBlocks);
     const shortDataLen = shortBlockLen - eccLen;
-
     if (dataCodewords <= 0 || shortDataLen < 0) return null;
 
-    const blocks = Array.from({ length: numBlocks }, (_, i) => new Uint8Array(shortDataLen + (i < numShortBlocks ? 0 : 1)));
+    const dataLengths = Array.from(
+      { length: numBlocks },
+      (_, block) => shortDataLen + (block < numShortBlocks ? 0 : 1)
+    );
+    const blocks = dataLengths.map((dataLength) => new Uint8Array(dataLength + eccLen));
     let index = 0;
+    const maxDataLength = Math.max(...dataLengths);
 
-    for (let column = 0; column < shortDataLen; column += 1) {
+    // QR interleaves all data columns first, skipping short blocks when needed.
+    for (let column = 0; column < maxDataLength; column += 1) {
       for (let block = 0; block < numBlocks; block += 1) {
-        if (index >= dataCodewords) return null;
+        if (column >= dataLengths[block]) continue;
+        if (index >= rawCodewords) return null;
         blocks[block][column] = codewords[index++];
       }
     }
 
-    for (let block = numShortBlocks; block < numBlocks; block += 1) {
-      if (index >= dataCodewords) return null;
-      blocks[block][shortDataLen] = codewords[index++];
+    // ECC bytes are then interleaved one column at a time across every block.
+    for (let column = 0; column < eccLen; column += 1) {
+      for (let block = 0; block < numBlocks; block += 1) {
+        if (index >= rawCodewords) return null;
+        blocks[block][dataLengths[block] + column] = codewords[index++];
+      }
     }
 
-    if (index !== dataCodewords) return null;
+    if (index !== rawCodewords) return null;
 
     const out = new Uint8Array(dataCodewords);
     let outIndex = 0;
-    for (const block of blocks) {
-      out.set(block, outIndex);
-      outIndex += block.length;
+    for (let block = 0; block < blocks.length; block += 1) {
+      const corrected = correctReedSolomonBlock(blocks[block], eccLen);
+      if (!corrected) return null;
+      const dataLength = dataLengths[block];
+      out.set(corrected.subarray(0, dataLength), outIndex);
+      outIndex += dataLength;
     }
+
     return out;
   }
 

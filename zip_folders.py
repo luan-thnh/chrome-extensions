@@ -2,22 +2,18 @@ from pathlib import Path
 import zipfile
 
 
-# Folder chứa file script này
 BASE_DIR = Path(__file__).resolve().parent
 
-# Các folder không muốn đưa vào ZIP
 IGNORE_DIRS = {
     ".git",
 }
 
-# Các extension không muốn đưa vào ZIP
 IGNORE_EXTENSIONS = {
     ".zip",
 }
 
 
 def should_ignore(path: Path) -> bool:
-    """Check whether a file/folder should be ignored."""
     if any(part in IGNORE_DIRS for part in path.parts):
         return True
 
@@ -28,7 +24,9 @@ def should_ignore(path: Path) -> bool:
 
 
 def zip_folder(folder: Path, output_zip: Path):
-    """Zip a folder while excluding ignored files/folders."""
+    # Nếu ZIP cũ tồn tại -> xóa trước để tạo bản mới sạch hoàn toàn
+    if output_zip.exists():
+        output_zip.unlink()
 
     with zipfile.ZipFile(
         output_zip,
@@ -44,11 +42,10 @@ def zip_folder(folder: Path, output_zip: Path):
                 continue
 
             if path.is_file():
-                # Thêm folder gốc vào trong ZIP
                 archive_path = folder.name / relative_path
                 zip_file.write(path, archive_path)
 
-    print(f"✅ ZIP DONE: {folder.name} -> {output_zip.name}")
+    print(f"✅ UPDATED: {folder.name} -> {output_zip.name}")
 
 
 def main():
@@ -64,31 +61,27 @@ def main():
         print("⚠️ Không tìm thấy folder nào.")
         return
 
-    created = 0
-    skipped = 0
+    success = 0
+    failed = 0
 
     for folder in sorted(folders):
         output_zip = BASE_DIR / f"{folder.name}.zip"
 
-        # Nếu ZIP đã tồn tại thì không zip lại
-        if output_zip.exists():
-            print(f"⏭️ SKIP: {folder.name} ({output_zip.name} đã tồn tại)")
-            skipped += 1
-            continue
-
         try:
             zip_folder(folder, output_zip)
-            created += 1
+            success += 1
+
         except Exception as error:
             print(f"❌ ERROR: {folder.name}: {error}")
+            failed += 1
 
-            # Xóa file ZIP lỗi/dở nếu có
+            # Xóa ZIP lỗi nếu quá trình zip bị fail
             if output_zip.exists():
                 output_zip.unlink()
 
     print("\n" + "=" * 50)
-    print(f"✅ Created : {created}")
-    print(f"⏭️ Skipped : {skipped}")
+    print(f"✅ Updated: {success}")
+    print(f"❌ Failed : {failed}")
     print("=" * 50)
 
 

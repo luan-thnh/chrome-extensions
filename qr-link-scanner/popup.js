@@ -98,12 +98,23 @@ function createResultCard(result) {
     link.rel = 'noopener noreferrer';
     link.textContent = result.url;
     card.appendChild(link);
+
+    const openIcon = document.createElement('button');
+    openIcon.className = 'open-icon';
+    openIcon.type = 'button';
+    openIcon.title = 'Open in new tab';
+    openIcon.setAttribute('aria-label', 'Open QR link in new tab');
+    openIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+    openIcon.addEventListener('click', () => chrome.tabs.create({ url: result.url }));
+    card.appendChild(openIcon);
   }
 
-  const raw = document.createElement('div');
-  raw.className = 'raw';
-  raw.textContent = result.url ? `QR value: ${result.value}` : result.value;
-  card.appendChild(raw);
+  if (!result.url) {
+    const raw = document.createElement('div');
+    raw.className = 'raw';
+    raw.textContent = result.value;
+    card.appendChild(raw);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'card-actions';
@@ -118,21 +129,13 @@ function createResultCard(result) {
   });
   actions.appendChild(copy);
 
-  if (result.url) {
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.textContent = 'Open link';
-    open.addEventListener('click', () => chrome.tabs.create({ url: result.url }));
-    actions.appendChild(open);
-  }
-
   card.appendChild(actions);
   return card;
 }
 
 function renderUnsupported() {
   statusText.textContent = 'QR engine unavailable';
-  resultsContainer.innerHTML = '<div class="empty unsupported">No QR engine could be initialized. Reload the extension from chrome://extensions. Version 0.2 includes a bundled local JavaScript decoder and should not require native BarcodeDetector support.</div>';
+  resultsContainer.innerHTML = '<div class="empty unsupported">No QR engine could be initialized. Reload the extension from chrome://extensions. Version 0.3 includes a bundled local JavaScript decoder with QR error correction and should not require native BarcodeDetector support.</div>';
 }
 
 function renderUnavailable(message) {

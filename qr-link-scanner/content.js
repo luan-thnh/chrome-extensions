@@ -66,9 +66,9 @@
       }
     }
 
-    if (state.nativeSupported && state.localSupported) state.engine = 'Native + local fallback';
+    if (state.nativeSupported && state.localSupported) state.engine = 'Native + corrected local fallback';
     else if (state.nativeSupported) state.engine = 'Native BarcodeDetector';
-    else if (state.localSupported) state.engine = 'Bundled local JavaScript';
+    else if (state.localSupported) state.engine = 'Local JS + error correction';
 
     return state.nativeSupported || state.localSupported;
   }
@@ -297,7 +297,7 @@
   }
 
   function registerResult(rawValue, source) {
-    const value = String(rawValue || '').trim();
+    const value = sanitizeQrText(rawValue);
     if (!value) return;
 
     const url = normalizeWebUrl(value);
@@ -306,7 +306,8 @@
 
     state.resultKeys.add(key);
     state.results.push({
-      value,
+      value: url || value,
+      rawValue: value,
       url,
       source: String(source || 'page'),
       detectedAt: Date.now()
@@ -321,21 +322,106 @@
     }
   }
 
+  function sanitizeQrText(rawValue) {
+    return String(rawValue ?? '')
+      .normalize('NFKC')
+      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/g, '')
+      .trim();
+  }
+
   function normalizeWebUrl(value) {
+    const cleaned = sanitizeQrText(value);
+    if (!cleaned) return null;
+
+    const candidates = new Set([
+      cleaned,
+      cleaned.replace(/\s+/g, ''),
+      cleaned.replace(/^[`'"“”‘’<>{}\[\]()]+|[`'"“”‘’<>{}\[\]()]+$/g, '')
+    ]);
+
+    for (const candidate of Array.from(candidates)) {
+      const repairedScheme = repairHttpScheme(candidate);
+      if (repairedScheme) candidates.add(repairedScheme);
+
+      // A malformed QR sample can occasionally flip the ASCII "v" in a .vn
+      // hostname to "^". Only apply this when the hostname is otherwise URL-like
+      // and the original candidate is invalid, so normal QR text is never changed.
+      const repairedHost = candidate.includes('^')
+        ? candidate.replace(/\.\^n(?=[:/?#]|$)/gi, '.vn')
+        : candidate;
+      if (repairedHost !== candidate) {
+        candidates.add(repairedHost);
+        const combinedRepair = repairHttpScheme(repairedHost);
+        if (combinedRepair) candidates.add(combinedRepair);
+      }
+
+      if (repairedScheme?.includes('^')) {
+        candidates.add(repairedScheme.replace(/\.\^n(?=[:/?#]|$)/gi, '.vn'));
+      }
+    }
+
+    for (const candidate of candidates) {
+      const parsed = parseHttpUrl(candidate);
+      if (parsed) return parsed;
+    }
+
+    const bare = cleaned.replace(/\s+/g, '');
+    if (/^(?:www\.)[a-z0-9.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(bare)) {
+      return parseHttpUrl(`https://${bare}`);
+    }
+
+    return null;
+  }
+
+  function parseHttpUrl(value) {
     try {
       const parsed = new URL(value);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
-      return null;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+      if (!parsed.hostname || !/^[a-z0-9.-]+$/i.test(parsed.hostname)) return null;
+      return parsed.href;
     } catch (_) {
-      if (/^(?:www\.)[a-z0-9.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(value)) {
-        try {
-          return new URL(`https://${value}`).href;
-        } catch (_) {
-          return null;
-        }
-      }
       return null;
     }
+  }
+
+  function repairHttpScheme(value) {
+    const separator = value.indexOf('://');
+    if (separator < 1 || separator > 8) return null;
+
+    const scheme = value.slice(0, separator).toLowerCase();
+    const rest = value.slice(separator);
+    if (scheme === 'http' || scheme === 'https') return value;
+
+    if (editDistanceAtMostOne(scheme, 'https')) return `https${rest}`;
+    if (editDistanceAtMostOne(scheme, 'http')) return `http${rest}`;
+    return null;
+  }
+
+  function editDistanceAtMostOne(a, b) {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1) return false;
+
+    let i = 0;
+    let j = 0;
+    let edits = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) {
+        i += 1;
+        j += 1;
+        continue;
+      }
+      edits += 1;
+      if (edits > 1) return false;
+      if (a.length > b.length) i += 1;
+      else if (b.length > a.length) j += 1;
+      else {
+        i += 1;
+        j += 1;
+      }
+    }
+
+    if (i < a.length || j < b.length) edits += 1;
+    return edits <= 1;
   }
 
   async function scanVisibleViewport(force = false) {
@@ -451,13 +537,16 @@
         .heading { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 8px; }
         .heading strong { font: 700 13px/1.2 system-ui; }
         .heading span { color: #64748b; font: 500 11px/1.2 system-ui; }
-        .item { padding: 10px; border-radius: 12px; background: #f8fafc; }
+        .item { position: relative; padding: 10px 42px 10px 10px; border-radius: 12px; background: #f8fafc; }
         .item + .item { margin-top: 8px; }
         .link { display: block; overflow: hidden; color: #1d4ed8; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; font: 650 12px/1.4 system-ui; }
         .raw { margin-top: 4px; color: #475569; overflow-wrap: anywhere; font: 500 11px/1.4 system-ui; }
         .actions { display: flex; gap: 6px; margin-top: 8px; }
         .action { border: 0; border-radius: 9px; padding: 7px 9px; cursor: pointer; background: #e2e8f0; color: #0f172a; font: 650 11px/1 system-ui; }
         .action:hover { background: #cbd5e1; }
+        .open-icon { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: #e2e8f0; color: #0f172a; cursor: pointer; }
+        .open-icon:hover { background: #cbd5e1; }
+        .open-icon svg { width: 15px; height: 15px; pointer-events: none; }
       </style>
       <div class="wrap">
         <div class="panel" data-qr-panel hidden>
@@ -492,12 +581,17 @@
       link.rel = 'noopener noreferrer';
       link.textContent = result.url;
       item.appendChild(link);
+
+      const openIcon = createArrowOpenButton(result.url, 'open-icon');
+      item.appendChild(openIcon);
     }
 
-    const raw = document.createElement('div');
-    raw.className = 'raw';
-    raw.textContent = result.value;
-    item.appendChild(raw);
+    if (!result.url) {
+      const raw = document.createElement('div');
+      raw.className = 'raw';
+      raw.textContent = result.value;
+      item.appendChild(raw);
+    }
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -513,16 +607,18 @@
     });
     actions.appendChild(copy);
 
-    if (result.url) {
-      const open = document.createElement('button');
-      open.className = 'action';
-      open.type = 'button';
-      open.textContent = 'Open';
-      open.addEventListener('click', () => window.open(result.url, '_blank', 'noopener,noreferrer'));
-      actions.appendChild(open);
-    }
-
     item.appendChild(actions);
     return item;
+  }
+
+  function createArrowOpenButton(url, className) {
+    const button = document.createElement('button');
+    button.className = className;
+    button.type = 'button';
+    button.title = 'Open in new tab';
+    button.setAttribute('aria-label', 'Open QR link in new tab');
+    button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+    button.addEventListener('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
+    return button;
   }
 })();

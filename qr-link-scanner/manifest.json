@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "QR Link Hunter",
-  "version": "0.2.0",
-  "description": "Automatically scans QR codes on webpages using a bundled local decoder, with native BarcodeDetector as an optional fast path.",
+  "version": "0.3.0",
+  "description": "Automatically scans QR codes on webpages using a bundled local decoder with QR error correction, plus native BarcodeDetector as an optional fast path.",
   "permissions": [
     "storage"
   ],

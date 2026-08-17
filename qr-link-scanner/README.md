@@ -1,8 +1,8 @@
-# QR Link Hunter — Chrome Extension v0.2.0
+# QR Link Hunter — Chrome Extension v0.3.0
 
 A Manifest V3 Chrome/Chromium extension that automatically scans QR codes rendered on the current webpage and exposes decoded web links.
 
-## What changed in v0.2
+## What changed in v0.3
 
 The scanner no longer depends on the operating system exposing the native `BarcodeDetector` API. A QR Model 2 decoder is bundled directly inside the extension as local JavaScript.
 
@@ -32,7 +32,7 @@ This makes the extension behavior independent of the desktop OS for normal Chrom
 6. Refresh the website that contains the QR code.
 7. Keep **Auto scan** enabled or click **Scan now**.
 
-The popup should now report `Bundled local JavaScript` on a Chromium build without native QR support, instead of `QR engine unavailable`.
+The popup should now report `Local JS + error correction` on a Chromium build without native QR support, instead of `QR engine unavailable`.
 
 ## Settings
 
@@ -57,3 +57,11 @@ Chrome internal pages (`chrome://...`), the Chrome Web Store and other protected
 The supplied QR image decodes to:
 
 `https://ts.uda.edu.vn/t/1279413`
+
+
+## v0.3 reliability update
+
+- Adds Reed-Solomon error correction to the bundled QR decoder before payload parsing.
+- Cleans zero-width/control characters and repairs a one-character-damaged `http`/`https` scheme when the QR clearly contains a web URL.
+- Adds an arrow-up-right button in the top-right of every detected URL card; clicking it opens the decoded URL in a new tab.
+- Keeps Copy as a separate action.
