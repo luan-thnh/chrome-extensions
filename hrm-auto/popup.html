@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HRM Daily Task Auto</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+              <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+              <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+              <path d="m8 12 2.2 2.2L16 8.5" />
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <div class="brand-title-row">
+              <h1>HRM Auto</h1>
+              <span class="version-badge">v1.3</span>
+            </div>
+            <p>Daily task assistant</p>
+          </div>
+        </div>
+
+        <button id="open-hrm" class="header-action" type="button" aria-label="Mở HRM" title="Mở HRM">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 3h7v7" />
+            <path d="m10 14 11-11" />
+            <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+          </svg>
+        </button>
+      </header>
+
+      <section id="status-container" class="status-panel" data-status="idle">
+        <div class="status-head">
+          <div class="status-state">
+            <span class="status-orbit" aria-hidden="true"><i></i></span>
+            <div>
+              <span class="eyebrow">Trạng thái</span>
+              <strong id="status-badge">Chưa chạy</strong>
+            </div>
+          </div>
+          <span id="auto-state-chip" class="auto-chip">Đang tải...</span>
+        </div>
+
+        <div class="status-grid">
+          <div class="status-metric">
+            <span>Lần chạy cuối</span>
+            <strong id="last-run-time">Chưa có</strong>
+          </div>
+          <div class="status-metric">
+            <span>Lần chạy kế tiếp</span>
+            <strong id="next-run-time">—</strong>
+          </div>
+        </div>
+
+        <div id="run-progress" class="run-progress hidden" aria-live="polite">
+          <span class="run-progress-dot"></span>
+          <span id="run-progress-text">Đang chuẩn bị...</span>
+        </div>
+      </section>
+
+      <nav class="tabs-container" aria-label="Chuyển khu vực">
+        <button class="tab-btn tab-active" data-tab="settings" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 7h16" /><path d="M4 17h16" /><circle cx="9" cy="7" r="2" /><circle cx="15" cy="17" r="2" />
+          </svg>
+          Cấu hình
+        </button>
+        <button class="tab-btn" data-tab="logs" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12h4l3 7 4-14 3 7h4" />
+          </svg>
+          Hoạt động
+          <span id="log-count" class="tab-count">0</span>
+        </button>
+      </nav>
+
+      <section id="tab-settings" class="tab-content tab-content-active">
+        <form id="settings-form" novalidate>
+          <section class="form-section">
+            <div class="section-heading">
+              <div>
+                <span class="section-kicker">Tài khoản</span>
+                <h2>Thông tin đăng nhập</h2>
+              </div>
+              <span class="local-note" title="Thông tin được lưu bằng chrome.storage.local">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Cục bộ
+              </span>
+            </div>
+
+            <div class="field-stack">
+              <label class="field-group">
+                <span>Email HRM</span>
+                <div class="input-shell">
+                  <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+                  <input type="email" id="username" placeholder="ten@donga.edu.vn" class="form-input with-icon" autocomplete="username" />
+                </div>
+              </label>
+
+              <label class="field-group">
+                <span>Password</span>
+                <div class="input-shell password-input-wrapper">
+                  <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <input type="password" id="password" placeholder="Nhập password" class="form-input with-icon" autocomplete="current-password" />
+                  <button type="button" id="toggle-password" class="icon-button" aria-label="Ẩn/hiện password">
+                    <svg id="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="eye-closed" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 18 18"/><path d="M10.6 5.2A9 9 0 0 1 12 5c6.5 0 10 7 10 7a15.7 15.7 0 0 1-2.2 3.2"/><path d="M6.2 6.2C3.5 8.1 2 12 2 12s3.5 7 10 7c1 0 1.9-.2 2.7-.4"/></svg>
+                  </button>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-heading">
+              <div>
+                <span class="section-kicker">Nội dung</span>
+                <h2>Công việc hằng ngày</h2>
+              </div>
+            </div>
+
+            <div class="field-stack">
+              <label class="field-group">
+                <span>Task</span>
+                <input type="text" id="task" placeholder="Ví dụ: Development & maintenance" class="form-input" maxlength="160" />
+              </label>
+
+              <label class="field-group">
+                <div class="field-label-row">
+                  <span>Detail</span>
+                  <small id="detail-counter">0 ký tự</small>
+                </div>
+                <textarea id="detail" placeholder="Mô tả ngắn gọn những việc đã thực hiện..." class="form-input form-textarea" rows="5" maxlength="3000"></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section schedule-section">
+            <div class="section-heading">
+              <div>
+                <span class="section-kicker">Lịch chạy</span>
+                <h2>Tự động theo lịch</h2>
+              </div>
+              <span id="schedule-summary" class="schedule-summary">Chưa kích hoạt</span>
+            </div>
+
+            <div class="time-row">
+              <div class="time-input-group">
+                <input type="number" id="time-hour" min="1" max="12" placeholder="09" class="time-input" inputmode="numeric" aria-label="Giờ" />
+                <span class="time-separator">:</span>
+                <input type="number" id="time-minute" min="0" max="59" placeholder="00" class="time-input" inputmode="numeric" aria-label="Phút" />
+                <div id="ampm-group" class="ampm-toggle-container" role="group" aria-label="AM hoặc PM">
+                  <button data-value="AM" id="ampm-am" class="ampm-btn ampm-active" type="button">AM</button>
+                  <button data-value="PM" id="ampm-pm" class="ampm-btn" type="button">PM</button>
+                </div>
+              </div>
+              <input type="hidden" id="time" value="09:00" />
+            </div>
+
+            <div class="quick-time-row" aria-label="Mốc giờ nhanh">
+              <button type="button" class="quick-time" data-time="08:00">08:00</button>
+              <button type="button" class="quick-time" data-time="09:00">09:00</button>
+              <button type="button" class="quick-time" data-time="17:00">17:00</button>
+              <button type="button" class="quick-time" data-time="17:30">17:30</button>
+            </div>
+
+            <div class="weekday-heading">
+              <span>Ngày trong tuần</span>
+              <div class="day-presets">
+                <button type="button" class="text-action" data-day-preset="workdays">T2–T6</button>
+                <button type="button" class="text-action" data-day-preset="all">Cả tuần</button>
+                <button type="button" class="text-action" data-day-preset="none">Bỏ chọn</button>
+              </div>
+            </div>
+
+            <div class="weekday-checkbox-grid">
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="1" checked /><span>T2</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="2" checked /><span>T3</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="3" checked /><span>T4</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="4" checked /><span>T5</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="5" checked /><span>T6</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="6" checked /><span>T7</span></label>
+              <label class="custom-checkbox-container"><input type="checkbox" name="weekday" value="0" /><span>CN</span></label>
+            </div>
+          </section>
+
+          <div class="action-bar">
+            <button id="save" class="primary-button" type="submit">
+              <span class="button-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+              <span class="btn-text">Lưu & bật Auto</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+            <div class="secondary-actions">
+              <button id="manual-trigger" class="soft-button" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 5 11 7-11 7V5Z"/></svg>
+                <span class="btn-text">Chạy thử</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+              <button id="cancel-auto" class="ghost-button danger-text" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                Dừng Auto
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section id="tab-logs" class="tab-content">
+        <div class="logs-toolbar">
+          <div class="log-filters" role="group" aria-label="Lọc log">
+            <button type="button" class="log-filter active" data-filter="all">Tất cả</button>
+            <button type="button" class="log-filter" data-filter="success">OK</button>
+            <button type="button" class="log-filter" data-filter="failed">Lỗi</button>
+          </div>
+          <div class="logs-actions">
+            <button id="copy-logs" class="mini-icon-button" type="button" title="Sao chép log" aria-label="Sao chép log">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button id="clear-logs" class="mini-icon-button danger-text" type="button" title="Xóa log" aria-label="Xóa log">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="logs-container" class="logs-container">
+          <div class="log-empty">
+            <span class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V13"/><path d="M16 19V7"/><path d="M20 19V3"/></svg></span>
+            <strong>Chưa có hoạt động</strong>
+            <span>Log sẽ xuất hiện sau lần chạy đầu tiên.</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="app-footer">
+        <span>HRM Daily Task Auto</span>
+        <span class="footer-dot">•</span>
+        <span>Created by V99</span>
+      </footer>
+    </main>
+
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
