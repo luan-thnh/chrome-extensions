@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bookmark Folder Exporter</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img class="logo" src="icons/logo.png" alt="Bookmark Folder Exporter" />
+        <div class="brand-copy">
+          <div class="brand-title">Bookmark Folder <span>Exporter</span></div>
+          <div class="brand-subtitle">Chọn • lọc • xuất bookmark nhanh</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="themeBtn" class="icon-btn" title="Đổi giao diện" aria-label="Đổi giao diện">☼</button>
+        <button id="refreshBtn" class="icon-btn" title="Tải lại bookmark" aria-label="Tải lại bookmark">↻</button>
+      </div>
+    </header>
+
+    <section class="panel folder-panel">
+      <div class="section-head compact">
+        <div>
+          <span class="step-badge">1</span>
+          <h2>Chọn thư mục</h2>
+        </div>
+        <div class="head-actions">
+          <button id="selectVisibleBtn" class="text-btn">Chọn đang hiện</button>
+          <button id="clearSelectionBtn" class="text-btn muted">Bỏ chọn</button>
+        </div>
+      </div>
+
+      <div class="search-row">
+        <div class="search-wrap grow">
+          <span class="search-icon">⌕</span>
+          <input id="folderSearch" type="search" placeholder="Tìm folder theo tên hoặc đường dẫn..." autocomplete="off" />
+        </div>
+      </div>
+
+      <div id="selectionSummary" class="selection-summary">
+        <div class="summary-icon">✓</div>
+        <div class="summary-copy">
+          <small>ĐÃ CHỌN</small>
+          <strong>Chưa chọn folder</strong>
+        </div>
+        <span id="selectedFolderBadge" class="pill">0 folder</span>
+      </div>
+
+      <div id="folderTree" class="folder-tree" aria-label="Danh sách folder bookmark"></div>
+
+      <div class="option-strip">
+        <label class="switch-row">
+          <span class="switch-copy">
+            <b>Lấy cả folder con</b>
+            <small>Bao gồm bookmark trong toàn bộ nhánh</small>
+          </span>
+          <input id="recursiveToggle" type="checkbox" checked />
+          <span class="switch"></span>
+        </label>
+        <label class="switch-row">
+          <span class="switch-copy">
+            <b>Chỉ link web</b>
+            <small>Bỏ chrome://, file:// và link nội bộ</small>
+          </span>
+          <input id="httpOnlyToggle" type="checkbox" checked />
+          <span class="switch"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel tools-panel">
+      <button id="toolsToggle" class="tools-toggle" type="button" aria-expanded="true">
+        <span><span class="step-badge purple">2</span><b>Bộ lọc thông minh</b></span>
+        <span id="toolsChevron">⌃</span>
+      </button>
+      <div id="toolsBody" class="tools-body">
+        <div class="filter-grid">
+          <label class="field">
+            <span>Từ khóa</span>
+            <input id="resultSearch" type="search" placeholder="Title hoặc URL..." />
+          </label>
+          <label class="field">
+            <span>Domain</span>
+            <input id="domainFilter" type="search" placeholder="vd: github.com" />
+          </label>
+        </div>
+        <div class="filter-bottom">
+          <label class="field mini-field">
+            <span>Sắp xếp</span>
+            <select id="sortSelect">
+              <option value="original">Theo bookmark</option>
+              <option value="title">Title A → Z</option>
+              <option value="folder">Theo folder</option>
+              <option value="dateDesc">Mới thêm trước</option>
+            </select>
+          </label>
+          <label class="switch-row compact-switch">
+            <span class="switch-copy"><b>Loại link trùng</b><small>So sánh theo URL</small></span>
+            <input id="dedupeToggle" type="checkbox" checked />
+            <span class="switch"></span>
+          </label>
+          <button id="resetFiltersBtn" class="soft-btn" type="button">Reset lọc</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel preview-panel">
+      <div class="section-head">
+        <div>
+          <span class="step-badge green">3</span>
+          <h2>Xem trước kết quả</h2>
+        </div>
+        <div class="head-actions">
+          <button id="copyUrlsBtn" class="soft-btn" disabled>Sao chép URL</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat"><span class="stat-icon cyan">↗</span><div><strong id="linkStat">0</strong><small>Link</small></div></div>
+        <div class="stat"><span class="stat-icon blue">▣</span><div><strong id="folderStat">0</strong><small>Folder</small></div></div>
+        <div class="stat"><span class="stat-icon green">◎</span><div><strong id="domainStat">0</strong><small>Domain</small></div></div>
+        <div class="stat"><span class="stat-icon red">⧉</span><div><strong id="duplicateStat">0</strong><small>Trùng</small></div></div>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">⌑</div>
+        <strong>Chọn ít nhất một folder</strong>
+        <span>Kết quả sẽ được tổng hợp và cập nhật ngay tại đây.</span>
+      </div>
+      <div id="previewList" class="preview-list hidden"></div>
+    </section>
+
+    <footer class="export-bar">
+      <div class="export-copy">
+        <span class="step-badge orange">4</span>
+        <div><strong>Xuất dữ liệu</strong><small id="exportHint">Chưa có dữ liệu để xuất</small></div>
+      </div>
+      <div class="export-actions">
+        <button id="exportCsvBtn" class="btn secondary" disabled><span>⇩</span> CSV</button>
+        <button id="exportExcelBtn" class="btn primary" disabled><span>▦</span> Excel .xlsx</button>
+      </div>
+    </footer>
+
+    <div id="toast" class="toast" aria-live="polite"></div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

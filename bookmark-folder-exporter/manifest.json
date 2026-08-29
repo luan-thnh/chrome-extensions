@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Folder Exporter",
+  "version": "1.2.1",
+  "description": "Chọn nhiều folder bookmark, lọc/xem trước, loại trùng và xuất Excel hoặc CSV với giao diện flat, xử lý ngay trên máy.",
+  "permissions": [
+    "bookmarks",
+    "downloads"
+  ],
+  "action": {
+    "default_title": "Bookmark Folder Exporter",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
